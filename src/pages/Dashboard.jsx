@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -6,6 +6,7 @@ export default function Dashboard() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
   const { currentUser, logout, getIdToken } = useAuth()
   const navigate = useNavigate()
 
@@ -17,15 +18,13 @@ export default function Dashboard() {
     try {
       setLoading(true)
       setError('')
-      
-      // Get the user's ID token for authentication
+
       const token = await getIdToken()
-      
+
       if (!token) {
         throw new Error('No authentication token available')
       }
 
-      // Call the Firebase Function endpoint
       const functionsUrl = import.meta.env.VITE_FUNCTIONS_URL
       const response = await fetch(`${functionsUrl}/getSheetData`, {
         method: 'GET',
@@ -47,6 +46,39 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const sortedData = useMemo(() => {
+    if (!sortConfig.key) return data
+    
+    const sorted = [...data].sort((a, b) => {
+      const aVal = a[sortConfig.key] || ''
+      const bVal = b[sortConfig.key] || ''
+      
+      const aNum = parseFloat(aVal)
+      const bNum = parseFloat(bVal)
+      
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum
+      }
+      
+      const comparison = aVal.toString().localeCompare(bVal.toString())
+      return sortConfig.direction === 'asc' ? comparison : -comparison
+    })
+    
+    return sorted
+  }, [data, sortConfig])
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }))
+  }
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return ' ↕'
+    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓'
   }
 
   const handleLogout = async () => {
@@ -76,8 +108,8 @@ export default function Dashboard() {
         <div className="dashboard-content">
           <div className="content-header">
             <h2>Live Sheet Data</h2>
-            <button 
-              onClick={fetchSheetData} 
+            <button
+              onClick={fetchSheetData}
               className="btn-refresh"
               disabled={loading}
             >
@@ -106,12 +138,19 @@ export default function Dashboard() {
                 <thead>
                   <tr>
                     {data[0] && Object.keys(data[0]).map((header, index) => (
-                      <th key={index}>{header}</th>
+                      <th 
+                        key={index} 
+                        onClick={() => handleSort(header)}
+                        className="sortable-header"
+                      >
+                        {header}
+                        <span className="sort-icon">{getSortIcon(header)}</span>
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map((row, rowIndex) => (
+                  {sortedData.map((row, rowIndex) => (
                     <tr key={rowIndex}>
                       {Object.values(row).map((cell, cellIndex) => (
                         <td key={cellIndex}>{cell}</td>
@@ -126,7 +165,7 @@ export default function Dashboard() {
       </main>
 
       <footer className="dashboard-footer">
-        <p>Read-only access • Data updates in real-time</p>
+        <p>Read-only access - Data updates in real-time</p>
       </footer>
     </div>
   )
