@@ -9,7 +9,7 @@ import Dashboard from './pages/Dashboard'
 
 function App() {
   return (
-    <BrowserRouter basename="/sheets-dashboard-app">
+    <BrowserRouter basename="/sheets-dashboard-app-2">
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
