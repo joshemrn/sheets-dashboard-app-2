@@ -26,7 +26,7 @@ exports.getSheetData = functions.https.onRequest(async (req, res) => {
       }
 
       const idToken = authHeader.split('Bearer ')[1]
-      
+
       try {
         // Verify the ID token
         const decodedToken = await admin.auth().verifyIdToken(idToken)
@@ -36,24 +36,24 @@ exports.getSheetData = functions.https.onRequest(async (req, res) => {
         return res.status(401).json({ error: 'Unauthorized - Invalid token' })
       }
 
-      // Configure Google Sheets API with service account
-      // The service account credentials are automatically available in Cloud Functions
+      // Configure Google Sheets API with service account key file
       const auth = new google.auth.GoogleAuth({
+        keyFile: './service-account-key.json',
         scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
       })
 
       const sheets = google.sheets({ version: 'v4', auth })
 
-      // TODO: Replace with your Google Sheet ID
+      // Get Sheet ID from environment
       const spreadsheetId = process.env.GOOGLE_SHEET_ID
-      
+
       if (!spreadsheetId) {
-        return res.status(500).json({ 
-          error: 'Server configuration error - Sheet ID not set' 
+        return res.status(500).json({
+          error: 'Server configuration error - Sheet ID not set'
         })
       }
 
-      // TODO: Replace with your sheet name/range
+      // Get range from environment or use default
       const range = process.env.SHEET_RANGE || 'Sheet1!A1:Z1000'
 
       // Fetch data from Google Sheets (READ-ONLY)
@@ -80,16 +80,16 @@ exports.getSheetData = functions.https.onRequest(async (req, res) => {
       })
 
       // Return the data
-      return res.json({ 
+      return res.json({
         data,
         lastUpdated: new Date().toISOString()
       })
 
     } catch (error) {
       console.error('Error fetching sheet data:', error)
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Failed to fetch data',
-        message: error.message 
+        message: error.message
       })
     }
   })
